@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <iomanip>
 #include <iostream>
 #include <cmath>
@@ -8,17 +9,7 @@
 
 using namespace std;
 
-double scalar_time, sum_time, multiplication_time, sparsed_scalar_time;
-
-int GetRand(int min, int max)
-{
-    return rand() % (max - min + 1) + min;
-}
-
-//double GetRand(int min = 1, int max = 10000000)
-//{
-//    return double(rand() % (max - min + 1) + min) / (double(max) / 10);
-//}
+double scalar_time, sum_time, multiplication_time;
 
 struct SparseMatrix
 {
@@ -26,25 +17,6 @@ struct SparseMatrix
     int cols;
     vector<double> matrix;
     vector<int> rowsOrigins, colsNumbers;
-
-    void MatrixGeneration(int a, int b)
-    {
-        rows = a, cols = b;
-        for (int i = 0; i < rows; i++) {
-            rowsOrigins.emplace_back(matrix.size());
-            double diagonal_element = 0;
-            int diagonal_element_index = 0;
-            for (int j = 0; j < cols; j++) {
-                if (GetRand(0, 3) == 0 || i == j) {
-                    diagonal_element_index += (i == j) * matrix.size();
-                    colsNumbers.emplace_back(j);
-                    matrix.emplace_back(sin(i + j + 1));
-                    diagonal_element += (i != j) * matrix.back();
-                }
-            }
-            matrix[diagonal_element_index] = 1.2 * diagonal_element;
-        }
-    }
 
     explicit SparseMatrix(int Nx = 10, int Ny = 10, int Nz = 10)
     {
@@ -55,47 +27,47 @@ struct SparseMatrix
                 for (int i = 0; i < Nx; i++) {
                     double diagonal_element = 0;
                     int index = k * (Nx * Ny) + j * Nx + i;
-                    rowsOrigins.emplace_back(matrix.size());
+                    rowsOrigins.push_back(matrix.size());
                     if (k > 0) {
-                        colsNumbers.emplace_back(index - Nx * Ny);
-                        matrix.emplace_back(sin(index + colsNumbers.back() + 1));
+                        colsNumbers.push_back(index - Nx * Ny);
+                        matrix.push_back(sin(index + colsNumbers.back() + 1));
                         diagonal_element += abs(matrix.back());
                     }
                     if (j > 0) {
-                        colsNumbers.emplace_back(index - Nx);
-                        matrix.emplace_back(sin(index + colsNumbers.back() + 1));
+                        colsNumbers.push_back(index - Nx);
+                        matrix.push_back(sin(index + colsNumbers.back() + 1));
                         diagonal_element += abs(matrix.back());
                     }
                     if (i > 0) {
-                        colsNumbers.emplace_back(index - 1);
-                        matrix.emplace_back(sin(index + colsNumbers.back() + 1));
+                        colsNumbers.push_back(index - 1);
+                        matrix.push_back(sin(index + colsNumbers.back() + 1));
                         diagonal_element += abs(matrix.back());
                     }
-                    colsNumbers.emplace_back(index);
-                    matrix.emplace_back(0);
+                    colsNumbers.push_back(index);
+                    matrix.push_back(0);
                     int counter = 1;
                     if (i < Nx - 1) {
-                        colsNumbers.emplace_back(index + 1);
-                        matrix.emplace_back(sin(index + colsNumbers.back() + 1));
+                        colsNumbers.push_back(index + 1);
+                        matrix.push_back(sin(index + colsNumbers.back() + 1));
                         diagonal_element += abs(matrix.back());
                         counter++;
                     }
                     if (j < Ny - 1) {
-                        colsNumbers.emplace_back(index + Nx);
-                        matrix.emplace_back(sin(index + colsNumbers.back() + 1));
+                        colsNumbers.push_back(index + Nx);
+                        matrix.push_back(sin(index + colsNumbers.back() + 1));
                         diagonal_element += abs(matrix.back());
                         counter++;
                     }
                     if (k < Nz - 1) {
-                        colsNumbers.emplace_back(index + Nx * Ny);
-                        matrix.emplace_back(sin(index + colsNumbers.back() + 1));
+                        colsNumbers.push_back(index + Nx * Ny);
+                        matrix.push_back(sin(index + colsNumbers.back() + 1));
                         diagonal_element += abs(matrix.back());
                         counter++;
                     }
                     matrix[matrix.size() - counter] = 1.1 * diagonal_element;
                 }
-        rowsOrigins.emplace_back(matrix.size());
-        colsNumbers.emplace_back(-1);
+        rowsOrigins.push_back(matrix.size());
+        colsNumbers.push_back(-1);
     }
 
     void Revert()
@@ -128,9 +100,9 @@ struct SparseMatrix
         int counter = 0;
         for (int i = 0; i < cols; i++)
             if (colsNumbers[rowsOrigins[row] + counter] == i)
-                res.emplace_back(matrix[rowsOrigins[row] + counter++]);
+                res.push_back(matrix[rowsOrigins[row] + counter++]);
             else
-                res.emplace_back(0);
+                res.push_back(0);
         return res;
     }
 
@@ -154,10 +126,10 @@ vector<double> multiplication(const vector<double> &vec, double a)
 
 double multiplication(const vector<double> &vec1, const vector<double> &vec2)
 {
-    auto start = omp_get_wtime();
+    double start = omp_get_wtime();
     double res = 0;
 
-    #pragma omp parallel for
+    #pragma omp parallel for reduction(+:res)
     for (size_t i = 0; i < vec1.size(); i++)
         res += vec1[i] * vec2[i];
 
@@ -165,38 +137,27 @@ double multiplication(const vector<double> &vec1, const vector<double> &vec2)
     return res;
 }
 
-double multiplication(const SparseMatrix &matrix, int row, const vector<double> &vec2)
+double sparsed_multiplication(const SparseMatrix &matrix, int row, const vector<double> &vec2)
 {
-    auto start = omp_get_wtime();
     double res = 0;
     vector<double> vec1 = matrix.GetSparsedRow(row);
 
-    double *v1 = vec1.data();
-    const double *v2 = vec2.data();
-    size_t size = vec1.size();
-
-//    #pragma omp parallel for
-//    for (size_t i = 0; i < vec1.size(); i++) {
-//        res += vec1[i] * vec2[matrix.colsNumbers[matrix.rowsOrigins[row] + i]];
-//    }
-
-#pragma omp parallel for reduction(+:res)
-    for (size_t i = 0; i < size; i++) {
-        res += v1[i] * v2[matrix.colsNumbers[matrix.rowsOrigins[row] + i]];
+    #pragma omp parallel for reduction(+:res)
+    for (size_t i = 0; i < vec1.size(); i++) {
+        res += vec1[i] * vec2[matrix.colsNumbers[matrix.rowsOrigins[row] + i]];
     }
 
-    sparsed_scalar_time += omp_get_wtime() - start;
     return res;
 }
 
 vector<double> multiplication(const SparseMatrix &matrix, const vector<double> &vec)
 {
-    auto start = omp_get_wtime();
+    double start = omp_get_wtime();
     vector<double> res(vec.size(), 0);
 
     #pragma omp parallel for
     for (int i = 0; i < matrix.rows; i++) {
-        res[i] = multiplication(matrix, i, vec);
+        res[i] = sparsed_multiplication(matrix, i, vec);
     }
 
     multiplication_time += omp_get_wtime() - start;
@@ -205,7 +166,7 @@ vector<double> multiplication(const SparseMatrix &matrix, const vector<double> &
 
 vector<double> sum(const vector<double> &vec1, const vector<double> &vec2, double a, double b)
 {
-    auto start = omp_get_wtime();
+    double start = omp_get_wtime();
     vector<double> res(vec1.size());
     vector<double> vec1_multiplied = multiplication(vec1, a);
     vector<double> vec2_multiplied = multiplication(vec2, b);
@@ -308,14 +269,6 @@ void test(int a, int b, int c, int threads)
     omp_set_num_threads(threads);
 
     SparseMatrix matrix = SparseMatrix(a, b, c);
-//    matrix.Print();
-//    cout << endl << endl;
-//    for (int i = 0; i < 8; i++) {
-//        auto row = matrix.GetRow(i);
-//        for (size_t j = 0; j < row.size(); j++)
-//            cout << row[j] << '\t';
-//        cout << endl;
-//    }
     vector<double> right_part(a * b * c);
     for (size_t i = 0; i < right_part.size(); i++)
         right_part[i] = sin(i);
@@ -328,24 +281,18 @@ void test(int a, int b, int c, int threads)
         cout << "Threads: " << omp_get_num_threads() << endl;
     }
     cout << a << ' ' << b << ' ' << c << ' ' << threads << endl;
-    auto start = omp_get_wtime();
+    double start = omp_get_wtime();
     solver(matrix, right_part, data);
-    auto time = omp_get_wtime() - start;
+    double time = omp_get_wtime() - start;
     cout << "Time: " << time << endl;
     cout << "Sum time: " << sum_time << endl;
     cout << "Scalar time: " << scalar_time << endl;
-    cout << "Multiplication time: " << multiplication_time << endl
-         << "Which includes sparsed scalar time: " << sparsed_scalar_time << endl;
+    cout << "Multiplication time: " << multiplication_time << endl;
     cout << "Iterations: " << data.nit << endl << endl;
-    sum_time = scalar_time = sparsed_scalar_time = multiplication_time = 0;
-
-//    cout << data.nit << endl;
-//    for (auto i : data.res)
-//        cout << i << ' ';
-//    cout << endl;
+    sum_time = scalar_time = multiplication_time = 0;
 
     for (int i = 0; i < right_part.size(); i++) {
-        auto row = matrix.GetSparsedRow(i);
+        vector<double> row = matrix.GetSparsedRow(i);
         double left = 0;
         for (size_t j = 0; j < row.size(); j++)
             left += row[j] * data.res[matrix.colsNumbers[matrix.rowsOrigins[i] + j]];
@@ -356,25 +303,6 @@ void test(int a, int b, int c, int threads)
 
 int main()
 {
-    srand(unsigned(time(nullptr)));
-
-    omp_set_num_threads(1);
-
-    int sum = 0;
-    double start = omp_get_wtime();
-    #pragma omp parallel for reduction(+:sum)
-    for (size_t i = 0; i < 10000000000; i++)
-        sum += 59 * 46;
-    cout << omp_get_wtime() - start << endl;
-
-    omp_set_num_threads(2);
-
-    start = omp_get_wtime();
-    #pragma omp parallel for reduction(+:sum)
-    for (size_t i = 0; i < 10000000000; i++)
-        sum += 59 * 46;
-    cout << omp_get_wtime() - start << endl;
-
     int a = 10, b = 10, c = 10;
 
     for (int i = 1; i < 9; i *= 2)
