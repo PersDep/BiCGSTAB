@@ -4,3 +4,7 @@
 cmake-build-debug/
 
 task1\.pdf
+
+*.docx
+
+*.pdf
