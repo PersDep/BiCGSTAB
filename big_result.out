@@ -1,0 +1,179 @@
+Sender: LSF System <lsfadmin@polus-c3-ib.bmc.hpc.cs.msu.ru>
+Subject: Job 5324: <./a.out> in cluster <MSUCluster> Done
+
+Job <./a.out> was submitted from host <polus-ib.bmc.hpc.cs.msu.ru> by user <edu-cmc-sqi16-05> in cluster <MSUCluster> at Tue Oct 16 16:35:17 2018
+Job was executed on host(s) <8*polus-c3-ib.bmc.hpc.cs.msu.ru>, in queue <normal>, as user <edu-cmc-sqi16-05> in cluster <MSUCluster> at Tue Oct 16 16:35:17 2018
+</home_edu/edu-cmc-sqi16/edu-cmc-sqi16-05> was used as the home directory.
+</home_edu/edu-cmc-sqi16/edu-cmc-sqi16-05/PHPC/BiCGSTAB_openmp> was used as the working directory.
+Started at Tue Oct 16 16:35:17 2018
+Terminated at Tue Oct 16 17:45:26 2018
+Results reported at Tue Oct 16 17:45:26 2018
+
+Your job looked like:
+
+------------------------------------------------------------
+# LSBATCH: User input
+./a.out
+------------------------------------------------------------
+
+Successfully completed.
+
+Resource usage summary:
+
+    CPU time :                                   19516.24 sec.
+    Max Memory :                                 278 MB
+    Average Memory :                             247.51 MB
+    Total Requested Memory :                     -
+    Delta Memory :                               -
+    Max Swap :                                   -
+    Max Processes :                              3
+    Max Threads :                                11
+    Run time :                                   4215 sec.
+    Turnaround time :                            4209 sec.
+
+The output (if any) follows:
+
+Start
+Threads: 1
+10 10 10 1
+Time: 2.02144
+Sum time: 0.00857673
+Scalar time: 0.00416348
+Multiplication time: 2.00746
+Iterations: -4
+
+Start
+Threads: 2
+10 10 10 2
+Time: 1.01925
+Sum time: 0.016895
+Scalar time: 0.00483119
+Multiplication time: 0.992229
+Iterations: -4
+
+Start
+Threads: 4
+10 10 10 4
+Time: 0.639147
+Sum time: 0.0183656
+Scalar time: 0.00482124
+Multiplication time: 0.60999
+Iterations: -4
+
+Start
+Threads: 8
+10 10 10 8
+Time: 0.383234
+Sum time: 0.0189755
+Scalar time: 0.00501117
+Multiplication time: 0.354334
+Iterations: -4
+
+Start
+Threads: 1
+100 10 10 1
+Time: 22.4276
+Sum time: 0.0472148
+Scalar time: 0.0250792
+Multiplication time: 22.3462
+Iterations: -4
+
+Start
+Threads: 2
+100 10 10 2
+Time: 11.2537
+Sum time: 0.0673916
+Scalar time: 0.0157081
+Multiplication time: 11.1435
+Iterations: -4
+
+Start
+Threads: 4
+100 10 10 4
+Time: 5.78806
+Sum time: 0.0973365
+Scalar time: 0.0119194
+Multiplication time: 5.63901
+Iterations: -4
+
+Start
+Threads: 8
+100 10 10 8
+Time: 3.36367
+Sum time: 0.112383
+Scalar time: 0.0149588
+Multiplication time: 3.19149
+Iterations: -4
+
+Start
+Threads: 1
+100 100 10 1
+Time: 210.513
+Sum time: 0.402972
+Scalar time: 0.207241
+Multiplication time: 209.787
+Iterations: -4
+
+Start
+Threads: 2
+100 100 10 2
+Time: 110.699
+Sum time: 0.589868
+Scalar time: 0.133449
+Multiplication time: 109.789
+Iterations: -4
+
+Start
+Threads: 4
+100 100 10 4
+Time: 56.4573
+Sum time: 0.82685
+Scalar time: 0.0754399
+Multiplication time: 55.262
+Iterations: -4
+
+Start
+Threads: 8
+100 100 10 8
+Time: 26.6255
+Sum time: 0.884488
+Scalar time: 0.0652173
+Multiplication time: 25.3434
+Iterations: -4
+
+Start
+Threads: 1
+100 100 100 1
+Time: 1957.55
+Sum time: 4.91916
+Scalar time: 2.08858
+Multiplication time: 1948.9
+Iterations: -4
+
+Start
+Threads: 2
+100 100 100 2
+Time: 1001.1
+Sum time: 3.81734
+Scalar time: 1.0506
+Multiplication time: 994.677
+Iterations: -4
+
+Start
+Threads: 4
+100 100 100 4
+Time: 507.861
+Sum time: 4.89868
+Scalar time: 0.545302
+Multiplication time: 500.498
+Iterations: -4
+
+Start
+Threads: 8
+100 100 100 8
+Time: 288.259
+Sum time: 6.10933
+Scalar time: 0.396775
+Multiplication time: 278.669
+Iterations: -4
+
