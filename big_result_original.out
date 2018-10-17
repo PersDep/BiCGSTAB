@@ -5,6 +5,7 @@ Job <./a.out> was submitted from host <polus-ib.bmc.hpc.cs.msu.ru> by user <edu-
 Job was executed on host(s) <8*polus-c3-ib.bmc.hpc.cs.msu.ru>, in queue <normal>, as user <edu-cmc-sqi16-05> in cluster <MSUCluster> at Tue Oct 16 16:35:17 2018
 </home_edu/edu-cmc-sqi16/edu-cmc-sqi16-05> was used as the home directory.
 </home_edu/edu-cmc-sqi16/edu-cmc-sqi16-05/PHPC/BiCGSTAB_openmp> was used as the working directory.
+Started at Tue Oct 16 16:35:17 2018
 Terminated at Tue Oct 16 17:45:26 2018
 Results reported at Tue Oct 16 17:45:26 2018
 
