@@ -83,6 +83,7 @@ for size, types in sorted(table.items()):
         flops_by_sizes[counter][type] /= threads[1]
         if flops_by_sizes[counter][type] > 1000:
             flops_by_sizes[counter][type] /= 100
+        flops_by_sizes[counter][type] /= 10
         flops_table[type].append(flops_by_sizes[counter][type])
     counter += 1
 
