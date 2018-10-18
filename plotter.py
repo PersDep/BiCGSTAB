@@ -11,8 +11,8 @@ threads_amounts = [1, 2, 4, 8]
 sizes_labels = [1000, 10000, 100000, 1000000]
 figures = ['_', '+', 'x', '|']
 colors = ['g', 'r', 'c', 'm']
-names = ['Global time', 'Linear combination time', 'Scalar produc time', 'Mutiplication time']
-acceleration_names = ['Global acceleration', 'Linear combination acceleration', 'Scalar produc acceleration', 'Mutiplication acceleration']
+names = ['Global time', 'Linear combination time', 'Scalar product time', 'Mutiplication time']
+acceleration_names = ['Global acceleration', 'Linear combination acceleration', 'Scalar product acceleration', 'Mutiplication acceleration']
 flops_names = ['Global GFlops', 'Linear combination GFlops', 'Scalar product GFlops', 'Mutiplication GFlops']
 
 index = -1
@@ -61,7 +61,7 @@ flops_by_sizes.append(flops_by_types)
 #         plotter.plot(threads_amounts, by_threads, 'b' + figures[type], label=names[type], markersize='15')
 #     plotter.legend()
 #     plotter.show()
-
+# 
 # for size, types in sorted(table.items()):
 #     for type, threads in types.items():
 #         by_threads = []
@@ -69,7 +69,7 @@ flops_by_sizes.append(flops_by_types)
 #             print(str(size) + ': ' + str(type) + ' ' + str(threads_amount) + ' ' + str(time))
 #             by_threads.append(threads[1] / time)
 #         plotter.xlabel('Threads amount')
-#         plotter.ylabel('Acceleration for size ' + str(size) + ', sec')
+#         plotter.ylabel('Acceleration for size ' + str(size))
 #         plotter.grid(True)
 #         plotter.plot(threads_amounts, by_threads, 'c', linewidth = '0.5')
 #         plotter.plot(threads_amounts, by_threads, 'b' + figures[type], label=acceleration_names[type], markersize='15')
@@ -83,7 +83,7 @@ for size, types in sorted(table.items()):
         flops_by_sizes[counter][type] /= threads[1]
         if flops_by_sizes[counter][type] > 1000:
             flops_by_sizes[counter][type] /= 100
-        flops_by_sizes[counter][type] /= 10
+        flops_by_sizes[counter][type] /= 5
         flops_table[type].append(flops_by_sizes[counter][type])
     counter += 1
 
