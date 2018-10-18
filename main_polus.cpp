@@ -11,14 +11,14 @@ using namespace std;
 
 double scalar_time, sum_time, multiplication_time;
 
-struct SparseMatrix
+struct SparsedMatrix
 {
     int rows;
     int cols;
     vector<double> matrix;
     vector<int> rowsOrigins, colsNumbers;
 
-    explicit SparseMatrix(int Nx = 10, int Ny = 10, int Nz = 10)
+    explicit SparsedMatrix(int Nx = 10, int Ny = 10, int Nz = 10)
     {
         rows = Nx * Ny * Nz;
         cols = rows;
@@ -137,7 +137,7 @@ double multiplication(const vector<double> &vec1, const vector<double> &vec2)
     return res;
 }
 
-double sparsed_multiplication(const SparseMatrix &matrix, int row, const vector<double> &vec2)
+double sparsed_multiplication(const SparsedMatrix &matrix, int row, const vector<double> &vec2)
 {
     double res = 0;
     vector<double> vec1 = matrix.GetSparsedRow(row);
@@ -150,7 +150,7 @@ double sparsed_multiplication(const SparseMatrix &matrix, int row, const vector<
     return res;
 }
 
-vector<double> multiplication(const SparseMatrix &matrix, const vector<double> &vec)
+vector<double> multiplication(const SparsedMatrix &matrix, const vector<double> &vec)
 {
     double start = omp_get_wtime();
     vector<double> res(vec.size(), 0);
@@ -189,9 +189,9 @@ struct result
     result(double tol, int maxit, int nit = 0) : tol(tol), maxit(maxit), nit(nit) {}
 };
 
-void solver(const SparseMatrix &matrix, const vector<double> &right_part, result &data)
+void solver(const SparsedMatrix &matrix, const vector<double> &right_part, result &data)
 {
-    SparseMatrix DD(matrix);
+    SparsedMatrix DD(matrix);
     DD.Revert();
     vector<double> temp_right_part1 = right_part;
     vector<double> temp_right_part2 = right_part;
@@ -268,7 +268,7 @@ void test(int a, int b, int c, int threads)
 {
     omp_set_num_threads(threads);
 
-    SparseMatrix matrix = SparseMatrix(a, b, c);
+    SparsedMatrix matrix = SparsedMatrix(a, b, c);
     vector<double> right_part(a * b * c);
     for (size_t i = 0; i < right_part.size(); i++)
         right_part[i] = sin(i);
