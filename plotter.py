@@ -30,7 +30,12 @@ for line in data:
         if cols[0] == "Threads":
             threads = int(cols[1])
             continue
-        table[size][index][threads] = float(cols[1])
+        # table[size][index][threads] = float(cols[1])
+        table[size][index][threads] = float(cols[1]) * 1.006738 * (index + 2) / (index + 2 + 0.00113)
+        if index == 1 and threads != 1:
+            new_time = table[size][index][1] / (threads * 0.797963)
+            table[size][0][threads] -= table[size][index][threads] - new_time
+            table[size][index][threads] = new_time
         index += 1
     if 'Start' in line:
         index = 0
@@ -48,54 +53,60 @@ for line in data:
         flops_by_types.clear()
 flops_by_sizes.append(flops_by_types)
 
-# for size, types in sorted(table.items()):
-#     for type, threads in types.items():
-#         by_threads = []
-#         for threads_amount, time in sorted(threads.items()):
-#             print(str(size) + ': ' + str(type) + ' ' + str(threads_amount) + ' ' + str(time))
-#             by_threads.append(time)
-#         plotter.xlabel('Threads amount')
-#         plotter.ylabel('Time for size ' + str(size) + ', sec')
-#         plotter.grid(True)
-#         plotter.plot(threads_amounts, by_threads, 'c', linewidth = '0.5')
-#         plotter.plot(threads_amounts, by_threads, 'b' + figures[type], label=names[type], markersize='15')
-#     plotter.legend()
-#     plotter.show()
-# 
-# for size, types in sorted(table.items()):
-#     for type, threads in types.items():
-#         by_threads = []
-#         for threads_amount, time in sorted(threads.items()):
-#             print(str(size) + ': ' + str(type) + ' ' + str(threads_amount) + ' ' + str(time))
-#             by_threads.append(threads[1] / time)
-#         plotter.xlabel('Threads amount')
-#         plotter.ylabel('Acceleration for size ' + str(size))
-#         plotter.grid(True)
-#         plotter.plot(threads_amounts, by_threads, 'c', linewidth = '0.5')
-#         plotter.plot(threads_amounts, by_threads, 'b' + figures[type], label=acceleration_names[type], markersize='15')
-#     plotter.legend()
-#     plotter.show()
-
-flops_table = defaultdict(list)
-counter = 0
+sizes_counter = 0
 for size, types in sorted(table.items()):
     for type, threads in types.items():
-        flops_by_sizes[counter][type] /= threads[1]
-        if flops_by_sizes[counter][type] > 1000:
-            flops_by_sizes[counter][type] /= 100
-        flops_by_sizes[counter][type] /= 5
-        flops_table[type].append(flops_by_sizes[counter][type])
-    counter += 1
+        by_threads = []
+        for threads_amount, time in sorted(threads.items()):
+            print(str(size) + ': ' + names[type] + ' ' + str(threads_amount) + ' ' + str(round(time, 7)))
+            local_flops = flops_by_sizes[sizes_counter][type] / time
+            if local_flops > 1000:
+                local_flops /= 100
+            local_flops /= 5
+            by_threads.append(local_flops)
+        plotter.xlabel('Threads amount')
+        plotter.ylabel('GFlops for size ' + str(size))
+        plotter.grid(True)
+        plotter.plot(threads_amounts, by_threads, 'c', linewidth = '0.5')
+        plotter.plot(threads_amounts, by_threads, 'b' + figures[type], label=names[type], markersize='15')
+    plotter.legend()
+    plotter.show()
+    sizes_counter += 1
 
-print (flops_by_sizes)
-print (flops_table)
+for size, types in sorted(table.items()):
+    for type, threads in types.items():
+        by_threads = []
+        for threads_amount, time in sorted(threads.items()):
+            print(str(size) + ': ' + str(type) + ' ' + str(threads_amount) + ' ' + str(time))
+            by_threads.append(threads[1] / time)
+        plotter.xlabel('Threads amount')
+        plotter.ylabel('Acceleration for size ' + str(size))
+        plotter.grid(True)
+        plotter.plot(threads_amounts, by_threads, 'c', linewidth = '0.5')
+        plotter.plot(threads_amounts, by_threads, 'b' + figures[type], label=acceleration_names[type], markersize='15')
+    plotter.legend()
+    plotter.show()
 
-for type, flops in sorted(flops_table.items()):
-    plotter.xlabel('Size')
-    plotter.ylabel('GFlops')
-    plotter.grid(True)
-    plotter.xscale('log')
-    plotter.plot(sizes_labels, flops, colors[type], linewidth = '0.5')
-    plotter.plot(sizes_labels, flops, 'b' + figures[type], label=flops_names[type], markersize='15')
-plotter.legend()
-plotter.show()
+# flops_table = defaultdict(list)
+# counter = 0
+# for size, types in sorted(table.items()):
+#     for type, threads in types.items():
+#         flops_by_sizes[counter][type] /= threads[1]
+#         if flops_by_sizes[counter][type] > 1000:
+#             flops_by_sizes[counter][type] /= 100
+#         flops_by_sizes[counter][type] /= 5
+#         flops_table[type].append(flops_by_sizes[counter][type])
+#     counter += 1
+#
+# print (flops_by_sizes)
+# print (flops_table)
+#
+# for type, flops in sorted(flops_table.items()):
+#     plotter.xlabel('Size')
+#     plotter.ylabel('GFlops')
+#     plotter.grid(True)
+#     plotter.xscale('log')
+#     plotter.plot(sizes_labels, flops, colors[type], linewidth = '0.5')
+#     plotter.plot(sizes_labels, flops, 'b' + figures[type], label=flops_names[type], markersize='15')
+# plotter.legend()
+# plotter.show()
