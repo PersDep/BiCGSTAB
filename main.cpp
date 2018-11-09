@@ -9,6 +9,7 @@
 using namespace std;
 
 double scalar_time, sum_time, multiplication_time, sparsed_scalar_time;
+int scalars_amount, sums_amount, multiplications_amount;
 
 int GetRand(int min, int max)
 {
@@ -20,7 +21,7 @@ int GetRand(int min, int max)
 //    return double(rand() % (max - min + 1) + min) / (double(max) / 10);
 //}
 
-struct SparseMatrix
+struct SparsedMatrix
 {
     int rows;
     int cols;
@@ -46,7 +47,7 @@ struct SparseMatrix
         }
     }
 
-    explicit SparseMatrix(int Nx = 10, int Ny = 10, int Nz = 10)
+    explicit SparsedMatrix(int Nx = 10, int Ny = 10, int Nz = 10)
     {
         rows = Nx * Ny * Nz;
         cols = rows;
@@ -157,47 +158,40 @@ double multiplication(const vector<double> &vec1, const vector<double> &vec2)
     auto start = omp_get_wtime();
     double res = 0;
 
-    #pragma omp parallel for
-    for (size_t i = 0; i < vec1.size(); i++)
-        res += vec1[i] * vec2[i];
+//    #pragma omp parallel for
+//    for (size_t i = 0; i < vec1.size(); i++)
+//        res += vec1[i] * vec2[i];
+    scalars_amount++;
 
     scalar_time += omp_get_wtime() - start;
     return res;
 }
 
-double multiplication(const SparseMatrix &matrix, int row, const vector<double> &vec2)
+double multiplication(const SparsedMatrix &matrix, int row, const vector<double> &vec2)
 {
     auto start = omp_get_wtime();
     double res = 0;
     vector<double> vec1 = matrix.GetSparsedRow(row);
 
-    double *v1 = vec1.data();
-    const double *v2 = vec2.data();
-    size_t size = vec1.size();
-
-//    #pragma omp parallel for
-//    for (size_t i = 0; i < vec1.size(); i++) {
-//        res += vec1[i] * vec2[matrix.colsNumbers[matrix.rowsOrigins[row] + i]];
-//    }
-
-#pragma omp parallel for reduction(+:res)
-    for (size_t i = 0; i < size; i++) {
-        res += v1[i] * v2[matrix.colsNumbers[matrix.rowsOrigins[row] + i]];
+    #pragma omp parallel for
+    for (size_t i = 0; i < vec1.size(); i++) {
+        res += vec1[i] * vec2[matrix.colsNumbers[matrix.rowsOrigins[row] + i]];
     }
 
     sparsed_scalar_time += omp_get_wtime() - start;
     return res;
 }
 
-vector<double> multiplication(const SparseMatrix &matrix, const vector<double> &vec)
+vector<double> multiplication(const SparsedMatrix &matrix, const vector<double> &vec)
 {
     auto start = omp_get_wtime();
     vector<double> res(vec.size(), 0);
 
-    #pragma omp parallel for
-    for (int i = 0; i < matrix.rows; i++) {
-        res[i] = multiplication(matrix, i, vec);
-    }
+//    #pragma omp parallel for
+//    for (int i = 0; i < matrix.rows; i++) {
+//        res[i] = multiplication(matrix, i, vec);
+//    }
+    multiplications_amount++;
 
     multiplication_time += omp_get_wtime() - start;
     return res;
@@ -210,9 +204,10 @@ vector<double> sum(const vector<double> &vec1, const vector<double> &vec2, doubl
     vector<double> vec1_multiplied = multiplication(vec1, a);
     vector<double> vec2_multiplied = multiplication(vec2, b);
 
-    #pragma omp parallel for
-    for (size_t i = 0; i < vec1.size(); i++)
-        res[i] = vec1_multiplied[i] + vec2_multiplied[i];
+//    #pragma omp parallel for
+//    for (size_t i = 0; i < vec1.size(); i++)
+//        res[i] = vec1_multiplied[i] + vec2_multiplied[i];
+    sums_amount++;
 
     sum_time += omp_get_wtime() - start;
     return res;
@@ -228,9 +223,9 @@ struct result
     result(double tol, int maxit, int nit = 0) : tol(tol), maxit(maxit), nit(nit) {}
 };
 
-void solver(const SparseMatrix &matrix, const vector<double> &right_part, result &data)
+void solver(const SparsedMatrix &matrix, const vector<double> &right_part, result &data)
 {
-    SparseMatrix DD(matrix);
+    SparsedMatrix DD(matrix);
     DD.Revert();
     vector<double> temp_right_part1 = right_part;
     vector<double> temp_right_part2 = right_part;
@@ -307,15 +302,15 @@ void test(int a, int b, int c, int threads)
 {
     omp_set_num_threads(threads);
 
-    SparseMatrix matrix = SparseMatrix(a, b, c);
-//    matrix.Print();
-//    cout << endl << endl;
-//    for (int i = 0; i < 8; i++) {
-//        auto row = matrix.GetRow(i);
-//        for (size_t j = 0; j < row.size(); j++)
-//            cout << row[j] << '\t';
-//        cout << endl;
-//    }
+    SparsedMatrix matrix = SparsedMatrix(a, b, c);
+////    matrix.Print();
+////    cout << endl << endl;
+////    for (int i = 0; i < 8; i++) {
+////        auto row = matrix.GetRow(i);
+////        for (size_t j = 0; j < row.size(); j++)
+////            cout << row[j] << '\t';
+////        cout << endl;
+////    }
     vector<double> right_part(a * b * c);
     for (size_t i = 0; i < right_part.size(); i++)
         right_part[i] = sin(i);
@@ -331,49 +326,61 @@ void test(int a, int b, int c, int threads)
     auto start = omp_get_wtime();
     solver(matrix, right_part, data);
     auto time = omp_get_wtime() - start;
-    cout << "Time: " << time << endl;
-    cout << "Sum time: " << sum_time << endl;
-    cout << "Scalar time: " << scalar_time << endl;
-    cout << "Multiplication time: " << multiplication_time << endl
-         << "Which includes sparsed scalar time: " << sparsed_scalar_time << endl;
+//    cout << "Time: " << time << endl;
+//    cout << "Sum time: " << sum_time << endl;
+//    cout << "Scalar time: " << scalar_time << endl;
+//    cout << "Multiplication time: " << multiplication_time << endl
+//         << "Which includes sparsed scalar time: " << sparsed_scalar_time << endl;
     cout << "Iterations: " << data.nit << endl << endl;
     sum_time = scalar_time = sparsed_scalar_time = multiplication_time = 0;
 
-//    cout << data.nit << endl;
-//    for (auto i : data.res)
-//        cout << i << ' ';
-//    cout << endl;
+    const double axpyflop = 2000 * right_part.size() * 3 * 1E-9;
+    const double dotflop = 1700 * right_part.size() * 2 * 1E-9;
+    const double spmvflop = 1500 * matrix.matrix.size() * 2 * 1E-9;
+//    cout << "Sums amount: " << sums_amount << endl;
+//    cout << "Scalars amount: " << scalars_amount << endl;
+//    cout << "Multiplications amount: " << multiplications_amount << endl;
+    cout << "Total flops: " << axpyflop + dotflop + spmvflop << endl;
+    cout << "Sum flops: " << axpyflop << endl;
+    cout << "Scalar flops: " << dotflop << endl;
+    cout << "Multiplication flops: " << spmvflop << endl << endl << endl;
+    sums_amount = scalars_amount = multiplications_amount = 0;
 
-    for (int i = 0; i < right_part.size(); i++) {
-        auto row = matrix.GetSparsedRow(i);
-        double left = 0;
-        for (size_t j = 0; j < row.size(); j++)
-            left += row[j] * data.res[matrix.colsNumbers[matrix.rowsOrigins[i] + j]];
-        if (right_part[i] - left > 0.0001)
-            cout << "PROBLEMS" << endl;
-    }
+////    cout << data.nit << endl;
+////    for (auto i : data.res)
+////        cout << i << ' ';
+////    cout << endl;
+//
+//    for (int i = 0; i < right_part.size(); i++) {
+//        auto row = matrix.GetSparsedRow(i);
+//        double left = 0;
+//        for (size_t j = 0; j < row.size(); j++)
+//            left += row[j] * data.res[matrix.colsNumbers[matrix.rowsOrigins[i] + j]];
+//        if (right_part[i] - left > 0.0001)
+//            cout << "PROBLEMS" << endl;
+//    }
 }
 
 int main()
 {
-    srand(unsigned(time(nullptr)));
+//    srand(unsigned(time(nullptr)));
 
-    omp_set_num_threads(1);
-
-    int sum = 0;
-    double start = omp_get_wtime();
-    #pragma omp parallel for reduction(+:sum)
-    for (size_t i = 0; i < 10000000000; i++)
-        sum += 59 * 46;
-    cout << omp_get_wtime() - start << endl;
-
-    omp_set_num_threads(2);
-
-    start = omp_get_wtime();
-    #pragma omp parallel for reduction(+:sum)
-    for (size_t i = 0; i < 10000000000; i++)
-        sum += 59 * 46;
-    cout << omp_get_wtime() - start << endl;
+//    omp_set_num_threads(1);
+//
+//    int sum = 0;
+//    double start = omp_get_wtime();
+//    #pragma omp parallel for reduction(+:sum)
+//    for (size_t i = 0; i < 10000000000; i++)
+//        sum += 59 * 46;
+//    cout << omp_get_wtime() - start << endl;
+//
+//    omp_set_num_threads(2);
+//
+//    start = omp_get_wtime();
+//    #pragma omp parallel for reduction(+:sum)
+//    for (size_t i = 0; i < 10000000000; i++)
+//        sum += 59 * 46;
+//    cout << omp_get_wtime() - start << endl;
 
     int a = 10, b = 10, c = 10;
 
