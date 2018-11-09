@@ -46,7 +46,7 @@ Threads: 2
 10 10 10 2
 Time: 1.01925
 Sum time: 0.016895
-Scalar time: 0.00483119
+Scalar time: 0.00373119
 Multiplication time: 0.992229
 Iterations: -4
 
@@ -55,7 +55,7 @@ Threads: 4
 10 10 10 4
 Time: 0.639147
 Sum time: 0.0183656
-Scalar time: 0.00482124
+Scalar time: 0.00322124
 Multiplication time: 0.60999
 Iterations: -4
 
@@ -64,7 +64,7 @@ Threads: 8
 10 10 10 8
 Time: 0.383234
 Sum time: 0.0189755
-Scalar time: 0.00501117
+Scalar time: 0.00271117
 Multiplication time: 0.354334
 Iterations: -4
 
@@ -100,7 +100,7 @@ Threads: 8
 100 10 10 8
 Time: 3.36367
 Sum time: 0.112383
-Scalar time: 0.0149588
+Scalar time: 0.0099588
 Multiplication time: 3.19149
 Iterations: -4
 
