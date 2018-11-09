@@ -112,18 +112,6 @@ struct SparsedMatrix
     }
 };
 
-vector<double> multiplication(const vector<double> &vec, double a)
-{
-    vector<double> res(vec.size());
-
-    #pragma omp parallel for
-    for (size_t i = 0; i < vec.size(); i++)
-        res[i] = a * vec[i];
-
-    return res;
-}
-
-
 double multiplication(const vector<double> &vec1, const vector<double> &vec2)
 {
     double start = omp_get_wtime();
@@ -166,14 +154,13 @@ vector<double> multiplication(const SparsedMatrix &matrix, const vector<double> 
 
 vector<double> sum(const vector<double> &vec1, const vector<double> &vec2, double a, double b)
 {
-    double start = omp_get_wtime();
     vector<double> res(vec1.size());
-    vector<double> vec1_multiplied = multiplication(vec1, a);
-    vector<double> vec2_multiplied = multiplication(vec2, b);
+    double start = omp_get_wtime();
 
+    size_t i = 0;
     #pragma omp parallel for
-    for (size_t i = 0; i < vec1.size(); i++)
-        res[i] = vec1_multiplied[i] + vec2_multiplied[i];
+    for (i = 0; i < vec1.size(); i++)
+        res[i] = vec1[i] * a + vec2[i] * b;
 
     sum_time += omp_get_wtime() - start;
     return res;
@@ -299,6 +286,23 @@ void test(int a, int b, int c, int threads)
         if (right_part[i] - left > 0.0001)
             cout << "PROBLEMS" << endl;
     }
+}
+
+void testSum(int threads)
+{
+    omp_set_num_threads(threads);
+    #pragma omp parallel
+    {
+    #pragma omp single
+        cout << "Threads: " << omp_get_num_threads() << endl;
+    }
+    vector<double> a(10000000), b(10000000);
+    for (size_t i = 0; i < a.size(); i++)
+        a[i] = sin(i), b[i] = cos(i);
+    for (int i = 0; i < 100; i++)
+        sum(a, b, 1.012, 0.999);
+    cout << sum_time / 100 << endl;
+    sum_time = 0;
 }
 
 int main()

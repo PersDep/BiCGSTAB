@@ -8,4 +8,4 @@ SET(GCC_COVERAGE_COMPILE_FLAGS "-fopenmp")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${GCC_COVERAGE_COMPILE_FLAGS}" )
 
 add_executable(BiCGSTAB
-        main.cpp)
+        main_polus.cpp)
