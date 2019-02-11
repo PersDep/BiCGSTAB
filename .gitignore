@@ -13,4 +13,6 @@ cmake-build-debug/
 
 results/
 
+results.old/
+
 operations_counter\.txt
