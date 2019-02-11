@@ -1,0 +1,9 @@
+mpixlcxx_r -qsmp=omp solution.cpp -o solution
+mpisubmit.bg -n 8 -w 00:30:00 --stdout result_mpi_8_10000000.out solution -- 1000 100 100 2 2 2
+
+mpisubmit.bg -n 4 -m vn -w 00:30:00 --stdout result_mpi_4_1000000_vn.out solution -- 100 100 100 2 2 1
+mpisubmit.bg -n 1 -w 00:50:00 --stdout result_openmp.out solution -- 100 100 100 1 1 1 openmp
+
+
+mpisubmit.bg -n 16 -w 00:05:00 --stdout result_mpi_16_10000000.out solution -- 1000 100 100 2 4 2
+mpisubmit.bg -n 16 -w 00:05:00 --stdout result_mpi_16_10000000.out solution -- 1000 100 100 2 4 2 openmp
