@@ -3,14 +3,14 @@
 
 cmake-build-debug/
 
-task1\.pdf
+*.doc
 
 *.docx
 
 *.pdf
 
-*.doc
-
 *.png
 
 results/
+
+operations_counter\.txt
