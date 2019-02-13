@@ -10,27 +10,25 @@ using namespace std;
 
 double sum_time, scalar_time, multiplication_time;
 
-struct SparsedMatrix
+class Halo;
+
+class SparsedMatrix
 {
     vector<double> data;
-    vector<int> rowsOrigins, colsNumbers;
-    vector<int> loc2glob;
-    vector<int> haloProc;
-    vector<vector<pair<int, int> > > halo;
-    int globalSize, localSize, globalHaloSize;
-    int proc_amount, proc_rank;
+    vector<size_t> rowsOrigins, colsNumbers;
+    vector<size_t> glob2loc, loc2glob, procMap;
+    size_t globalSize, localSize, simpleHaloSubSize;
 
-    SparsedMatrix(int proc_amount, int proc_rank, int Nx, int Ny, int Nz, int xParts, int yParts, int zParts) :
-    proc_rank(proc_rank), proc_amount(proc_amount)
+public:
+    SparsedMatrix(int proc_amount, int proc_rank, size_t Nx, size_t Ny, size_t Nz, size_t xParts, size_t yParts, size_t zParts)
     {
-        int xPart = int(ceil(double(Nx) / double(xParts)));
-        int yPart = int(ceil(double(Ny) / double(yParts)));
-        int zPart = int(ceil(double(Nz) / double(zParts)));
-        int startK = proc_rank / (xParts * yParts) * zPart;
-        int startJ = (proc_rank % (xParts * yParts)) / xParts * yPart;
-        int startI = (proc_rank - startK / zPart * (xParts * yParts) - startJ / yPart * xParts) * xPart;
+        size_t xPart = size_t(ceil(double(Nx) / double(xParts)));
+        size_t yPart = size_t(ceil(double(Ny) / double(yParts)));
+        size_t zPart = size_t(ceil(double(Nz) / double(zParts)));
+        size_t startK = proc_rank / (xParts * yParts) * zPart;
+        size_t startJ = (proc_rank % (xParts * yParts)) / xParts * yPart;
+        size_t startI = (proc_rank - startK / zPart * (xParts * yParts) - startJ / yPart * xParts) * xPart;
 
-        vector<int> procMap;
         for (int k = 0; k < Nz; k++)
             for (int j = 0; j < Ny; j++)
                 for (int i = 0; i < Nx; i++)
@@ -42,30 +40,26 @@ struct SparsedMatrix
 
         globalSize = Nx * Ny * Nz;
         localSize = xPart * yPart * zPart;
-        globalHaloSize = 0;
+        simpleHaloSubSize = 2 * (xPart * yPart + xPart * zPart + yPart * zPart);
 
-        for (int k = startK; k < zPart + startK; k++)
-            for (int j = startJ; j < yPart + startJ; j++)
-                for (int i = startI; i < xPart + startI; i++)
-                {
+        for (size_t k = startK; k < zPart + startK; k++)
+            for (size_t j = startJ; j < yPart + startJ; j++)
+                for (size_t i = startI; i < xPart + startI; i++) {
                     double diagonal_element = 0;
-                    int index = i + Nx * j + Nx * Ny * k;
+                    size_t index = i + Nx * j + Nx * Ny * k;
                     loc2glob.push_back(index);
                     rowsOrigins.push_back(data.size());
-                    if (k > 0)
-                    {
+                    if (k > 0) {
                         colsNumbers.push_back(index - Nx * Ny);
                         data.push_back(sin(index + colsNumbers.back() + 1));
                         diagonal_element += abs(data.back());
                     }
-                    if (j > 0)
-                    {
+                    if (j > 0) {
                         colsNumbers.push_back(index - Nx);
-                        data.push_back(sin(index  + colsNumbers.back() + 1));
+                        data.push_back(sin(index + colsNumbers.back() + 1));
                         diagonal_element += abs(data.back());
                     }
-                    if (i > 0)
-                    {
+                    if (i > 0) {
                         colsNumbers.push_back(index - 1);
                         data.push_back(sin(index + colsNumbers.back() + 1));
                         diagonal_element += abs(data.back());
@@ -73,20 +67,17 @@ struct SparsedMatrix
                     size_t diagonal_index = data.size();
                     colsNumbers.push_back(index);
                     data.push_back(0);
-                    if (i < Nx - 1)
-                    {
+                    if (i < Nx - 1) {
                         colsNumbers.push_back(index + 1);
                         data.push_back(sin(index + colsNumbers.back() + 1));
                         diagonal_element += abs(data.back());
                     }
-                    if (j < Ny - 1)
-                    {
+                    if (j < Ny - 1) {
                         colsNumbers.push_back(index + Nx);
                         data.push_back(sin(index + colsNumbers.back() + 1));
                         diagonal_element += abs(data.back());
                     }
-                    if (k < Nz - 1)
-                    {
+                    if (k < Nz - 1) {
                         colsNumbers.push_back(index + Nx * Ny);
                         data.push_back(sin(index + colsNumbers.back() + 1));
                         diagonal_element += abs(data.back());
@@ -95,28 +86,81 @@ struct SparsedMatrix
                     data[diagonal_index] = 1.1 * diagonal_element;
                 }
         rowsOrigins.push_back(data.size());
-        colsNumbers.push_back(-1);
+        colsNumbers.push_back(size_t(-1));
 
-        vector<int> glob2loc(globalSize, -1);
+        glob2loc = vector<size_t>(globalSize, size_t(-1));
         for (size_t i = 0; i < loc2glob.size(); i++)
             glob2loc[loc2glob[i]] = i;
+    }
 
-        vector<vector<pair<int, int> > > simpleHalo(proc_amount, vector<pair<int, int> >(2 * (xPart * yPart + xPart * zPart + yPart * zPart), make_pair(-1, -1)));
+    void UpdateColsNumbers()
+    {
+        for (size_t i = 0; i < data.size(); i++)
+            colsNumbers[i] = glob2loc[colsNumbers[i]];
+    }
+
+    void Revert()
+    {
         for (int i = 0; i < localSize; i++)
-            for (int k = rowsOrigins[i]; k < rowsOrigins[i + 1]; k++)
-                if (glob2loc[colsNumbers[k]] == -1)
+            for (size_t j = rowsOrigins[i]; j < rowsOrigins[i + 1]; j++)
+                if (colsNumbers[j] != i)
+                    data[j] = 0;
+                else
+                    data[j] = 1 / data[j];
+    }
+
+    vector<double> multiplication(const SparsedMatrix &matrix, const vector<double> &vec) const
+    {
+        vector<double> result(vec.size(), 0);
+        double start = MPI_Wtime();
+
+        #pragma omp parallel for
+        for (size_t i = 0; i < matrix.getLocalSize(); i++)
+            for (size_t j = matrix.rowsOrigins[i]; j < matrix.rowsOrigins[i + 1]; j++)
+                result[i] += matrix.data[j] * vec[matrix.colsNumbers[j]];
+
+        multiplication_time += MPI_Wtime() - start;
+        return result;
+    }
+
+    size_t getLocalSize() const { return localSize; }
+    size_t getRowOrigin(size_t i) const { return rowsOrigins[i]; }
+    size_t getColNumber(size_t i) const { return colsNumbers[i]; }
+    size_t getGlobalFromLocal(size_t i) const { return loc2glob[i]; }
+    size_t getLocalFromGlobal(size_t i) const { return glob2loc[i]; }
+    size_t getProcRank(size_t i) const { return procMap[i]; }
+    size_t getSimpleHaloSubSize() const { return simpleHaloSubSize; }
+
+    void setLocal(size_t i, size_t j) { glob2loc[i] = j; }
+};
+
+class Halo
+{
+    vector<vector<pair<size_t, size_t> > > halo;
+    vector<int> haloProc;
+    int globalHaloSize;
+    int proc_amount, proc_rank;
+
+public:
+    Halo(int proc_amount, int proc_rank, SparsedMatrix &matrix) : globalHaloSize(0), proc_amount(proc_amount), proc_rank(proc_rank)
+    {
+        vector<vector<pair<size_t, size_t> > > simpleHalo(proc_amount, vector<pair<size_t , size_t> >(matrix.getSimpleHaloSubSize(), make_pair(-1, -1)));
+        for (size_t i = 0; i < matrix.getLocalSize(); i++)
+            for (size_t k = matrix.getRowOrigin(i); k < matrix.getRowOrigin(i + 1); k++)
+                if (matrix.getLocalFromGlobal(matrix.getColNumber(k)) == -1)
                 {
                     for (size_t j = 0; j < simpleHalo.size(); j++)
-                        if (simpleHalo[procMap[colsNumbers[k]]][j].first == -1)
+                        if (simpleHalo[matrix.getProcRank(matrix.getColNumber(k))][j].first == -1)
                         {
-                            simpleHalo[procMap[colsNumbers[k]]][j].first = colsNumbers[k];
+                            simpleHalo[matrix.getProcRank(matrix.getColNumber(k))][j].first = matrix.getColNumber(k);
                             break;
                         }
 
                     for (size_t j = 0; j < simpleHalo.size(); j++)
-                        if (simpleHalo[procMap[colsNumbers[k]]][j].second == -1)
+                        if (simpleHalo[matrix.getProcRank(matrix.getColNumber(k))][j].second == -1)
                         {
-                            simpleHalo[procMap[colsNumbers[k]]][j].second = loc2glob[i];
+                            simpleHalo[matrix.getProcRank(matrix.getColNumber(k))][j].second = matrix.getGlobalFromLocal(
+                                    i);
                             break;
                         }
                 }
@@ -129,13 +173,13 @@ struct SparsedMatrix
                 for (size_t j = 0; j < simpleHalo.size(); j++)
                     if (simpleHalo[i][j].first != -1)
                     {
-                        glob2loc[simpleHalo[i][j].first] = int(loc2glob.size()) + globalHaloSize++;
+                        matrix.setLocal(simpleHalo[i][j].first, matrix.getLocalSize() + globalHaloSize++);
                         counter++;
                     }
-                halo.push_back(vector<pair<int, int> >(size_t(counter)));
+                halo.push_back(vector<pair<size_t, size_t > >(size_t(counter)));
                 haloProc.push_back(i);
                 for (int j = 0; j < counter; j++)
-                    halo.back()[j].first = glob2loc[simpleHalo[i][j].first];
+                    halo.back()[j].first = matrix.getLocalFromGlobal(simpleHalo[i][j].first);
             }
             if (simpleHalo[i][0].second != -1)
             {
@@ -144,66 +188,42 @@ struct SparsedMatrix
                     if (simpleHalo[i][j].second != -1)
                         counter++;
                 for (int j = 0; j < counter; j++)
-                    halo.back()[j].second = glob2loc[simpleHalo[i][j].second];
+                    halo.back()[j].second = matrix.getLocalFromGlobal(simpleHalo[i][j].second);
             }
         }
-
-        for (size_t i = 0; i < data.size(); i++)
-            colsNumbers[i] = glob2loc[colsNumbers[i]];
     }
 
-    void Revert()
+    void sendRecv(const SparsedMatrix &matrix, vector<double> &vec) const
     {
-        for (int i = 0; i < localSize; i++)
-            for (int j = rowsOrigins[i]; j < rowsOrigins[i + 1]; j++)
-                if (colsNumbers[j] != i)
-                    data[j] = 0;
-                else
-                    data[j] = 1 / data[j];
+        vector<MPI_Request> send_request(halo.size()), recv_request(halo.size());
+        vector<vector<double> > send(halo.size()), recv(halo.size());
+        for (size_t i = 0; i < halo.size(); i++)
+        {
+            recv[i] = vector<double>(halo[i].size());
+            for (size_t j = 0; j < halo[i].size(); j++)
+                send[i].push_back(vec[halo[i][j].second]);
+            MPI_Isend(send[i].data(), int(halo[i].size()), MPI_DOUBLE, haloProc[i], 0, MPI_COMM_WORLD, &(send_request[i]));
+            MPI_Irecv(recv[i].data(), int(halo[i].size()), MPI_DOUBLE, haloProc[i], MPI_ANY_TAG, MPI_COMM_WORLD, &(recv_request[i]));
+        }
+        MPI_Waitall(int(halo.size()), send_request.data(), MPI_STATUS_IGNORE);
+        MPI_Waitall(int(halo.size()), recv_request.data(), MPI_STATUS_IGNORE);
+        for (size_t i = 0; i < halo.size(); i++)
+            for (size_t j = 0; j < halo[i].size(); j++)
+                vec[halo[i][j].first] = recv[i][j];
     }
+
+    int getGlobalHaloSize() const { return globalHaloSize; }
+    int getProcAmount() const { return proc_amount; }
+    int getProcRank() const { return proc_rank; }
 };
 
-void sendRecv(const SparsedMatrix &matrix, vector<double> &vec)
-{
-    size_t haloSize = matrix.halo.size();
-    vector<MPI_Request> send_request(haloSize), recv_request(haloSize);
-    vector<vector<double> > send(haloSize), recv(haloSize);
-    for (size_t i = 0; i < haloSize; i++)
-    {
-        recv[i] = vector<double>(matrix.halo[i].size());
-        for (size_t j = 0; j < matrix.halo[i].size(); j++)
-            send[i].push_back(vec[matrix.halo[i][j].second]);
-        MPI_Isend(send[i].data(), matrix.halo[i].size(), MPI_DOUBLE, matrix.haloProc[i], 0, MPI_COMM_WORLD, &(send_request[i]));
-        MPI_Irecv(recv[i].data(), matrix.halo[i].size(), MPI_DOUBLE, matrix.haloProc[i], MPI_ANY_TAG, MPI_COMM_WORLD, &(recv_request[i]));
-    }
-    MPI_Waitall(haloSize, send_request.data(), MPI_STATUS_IGNORE);
-    MPI_Waitall(haloSize, recv_request.data(), MPI_STATUS_IGNORE);
-    for (size_t i = 0; i < haloSize; i++)
-        for (size_t j = 0; j < matrix.halo[i].size(); j++)
-            vec[matrix.halo[i][j].first] = recv[i][j];
-}
-
-vector<double> multiplication(const SparsedMatrix &matrix, const vector<double> &vec)
-{
-    vector<double> result(vec.size(), 0);
-    double start = MPI_Wtime();
-
-    #pragma omp parallel for
-    for (int i = 0; i < matrix.localSize; i++)
-        for (int j = matrix.rowsOrigins[i]; j < matrix.rowsOrigins[i + 1]; j++)
-            result[i] += matrix.data[j] * vec[matrix.colsNumbers[j]];
-
-    multiplication_time += MPI_Wtime() - start;
-    return result;
-}
-
-double multiplication(const vector<double> &vec1, const vector<double> &vec2, int size)
+double multiplication(const vector<double> &vec1, const vector<double> &vec2, size_t size)
 {
     double local_result = 0, result = 0;
     double start = MPI_Wtime();
 
     #pragma omp parallel for reduction(+:local_result)
-    for (int  i = 0; i < size; i++)
+    for (size_t  i = 0; i < size; i++)
         local_result += vec1[i] * vec2[i];
 
     scalar_time += MPI_Wtime() - start;
@@ -211,13 +231,13 @@ double multiplication(const vector<double> &vec1, const vector<double> &vec2, in
     return result;
 }
 
-vector<double> sum(const vector<double> &vec1, const vector<double> &vec2, double a, double b, int size)
+vector<double> sum(const vector<double> &vec1, const vector<double> &vec2, double a, double b, size_t size)
 {
     vector<double> result(vec1.size());
     double start = MPI_Wtime();
 
     #pragma omp parallel for
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
         result[i] = vec1[i] * a + vec2[i] * b;
 
     sum_time += MPI_Wtime() - start;
@@ -234,7 +254,7 @@ struct result
     result(double tol, int maxit, int nit = 0) : tol(tol), maxit(maxit), nit(nit) {}
 };
 
-void solver(const SparsedMatrix &matrix, const vector<double> &right_part, result &data)
+void solver(const SparsedMatrix &matrix, const vector<double> &right_part, const Halo &halo, result &data)
 {
     SparsedMatrix reverted_matrix(matrix);
     reverted_matrix.Revert();
@@ -242,10 +262,10 @@ void solver(const SparsedMatrix &matrix, const vector<double> &right_part, resul
     vector<double> PP(right_part), PP2(right_part.size(), 0), TT(right_part.size(), 0),
                    VV(right_part.size(), 0), SS(right_part.size(), 0), SS2(right_part.size(), 0);
     double mineps = 1e-15;
-    double initres = sqrt(multiplication(right_part_copy, right_part_copy, matrix.localSize));
+    double initres = sqrt(multiplication(right_part_copy, right_part_copy, matrix.getLocalSize()));
     double res = initres;
     double eps = max(mineps, data.tol * initres);
-    double alphai = 1, alphai_1 = 1, betai_1 = 1, Rhoi_1 = 1, Rhoi_2 = 1, wi = 1, wi_1 = 1;
+    double alphai, alphai_1 = 1, betai_1, Rhoi_1, Rhoi_2 = 1, wi, wi_1 = 1;
     int i = 0;
     data.res = vector<double>(right_part.size(), 0);
     for (i = 0; i < data.maxit; i++)
@@ -257,7 +277,7 @@ void solver(const SparsedMatrix &matrix, const vector<double> &right_part, resul
             return;
         }
         Rhoi_1 = initres * initres;
-        if (i) Rhoi_1 = multiplication(right_part, right_part_copy, matrix.localSize);
+        if (i) Rhoi_1 = multiplication(right_part, right_part_copy, matrix.getLocalSize());
         if (abs(Rhoi_1) < numeric_limits<double>::min())
         {
             data.nit = -1;
@@ -266,13 +286,13 @@ void solver(const SparsedMatrix &matrix, const vector<double> &right_part, resul
         if (i)
         {
             betai_1 = (Rhoi_1 * alphai_1) / (Rhoi_2  * wi_1);
-            PP = sum(PP, right_part_copy, betai_1, 1, matrix.localSize);
-            PP = sum(PP, VV, 1, -wi_1 * betai_1, matrix.localSize);
+            PP = sum(PP, right_part_copy, betai_1, 1, matrix.getLocalSize());
+            PP = sum(PP, VV, 1, -wi_1 * betai_1, matrix.getLocalSize());
         }
-        PP2 = multiplication(reverted_matrix, PP);
-        sendRecv(matrix, PP2);
-        VV = multiplication(matrix, PP2);
-        alphai = multiplication(right_part, VV, matrix.localSize);
+        PP2 = matrix.multiplication(reverted_matrix, PP);
+        halo.sendRecv(matrix, PP2);
+        VV = matrix.multiplication(matrix, PP2);
+        alphai = multiplication(right_part, VV, matrix.getLocalSize());
         if (fabs(alphai) < numeric_limits<double>::min())
         {
             data.nit = -3;
@@ -280,47 +300,49 @@ void solver(const SparsedMatrix &matrix, const vector<double> &right_part, resul
         }
         alphai = Rhoi_1 / alphai;
         SS = right_part_copy;
-        SS = sum(SS, VV, 1, -alphai, matrix.localSize);
-        SS2 = multiplication(reverted_matrix, SS);
-        sendRecv(matrix, SS2);
-        TT = multiplication(matrix, SS2);
-        wi = multiplication(TT, TT, matrix.localSize);
+        SS = sum(SS, VV, 1, -alphai, matrix.getLocalSize());
+        SS2 = matrix.multiplication(reverted_matrix, SS);
+        halo.sendRecv(matrix, SS2);
+        TT = matrix.multiplication(matrix, SS2);
+        wi = multiplication(TT, TT, matrix.getLocalSize());
         if (abs(wi) < numeric_limits<double>::min())
         {
             data.nit = -4;
             return;
         }
-        wi = multiplication(TT, SS, matrix.localSize) / wi;
+        wi = multiplication(TT, SS, matrix.getLocalSize()) / wi;
         if (abs(wi) < numeric_limits<double>::min())
         {
             data.nit = -5;
             return;
         }
-        data.res = sum(data.res, PP2, 1, alphai, matrix.localSize);
-        data.res = sum(data.res, SS2, 1, wi, matrix.localSize);
-        right_part_copy = sum(SS, TT, 1.0, -wi, matrix.localSize);
+        data.res = sum(data.res, PP2, 1, alphai, matrix.getLocalSize());
+        data.res = sum(data.res, SS2, 1, wi, matrix.getLocalSize());
+        right_part_copy = sum(SS, TT, 1.0, -wi, matrix.getLocalSize());
         alphai_1 = alphai;
         Rhoi_2 = Rhoi_1;
         wi_1 = wi;
-        res = sqrt(multiplication(right_part_copy, right_part_copy, matrix.localSize));
+        res = sqrt(multiplication(right_part_copy, right_part_copy, matrix.getLocalSize()));
     }
-    if (matrix.proc_rank == 0)
+    if (halo.getProcRank() == 0)
         cout << "Solver_BiCGSTAB: outres: " << res << endl;
 
     data.nit = i;
 }
 
-void test(int proc_amount, int proc_rank, int xParts, int yParts, int zParts, int  a, int b, int c, int threads)
+void test(int proc_amount, int proc_rank, size_t xParts, size_t yParts, size_t zParts, size_t a, size_t b, size_t c, int threads)
 {
     omp_set_num_threads(threads);
 
     SparsedMatrix matrix(proc_amount, proc_rank, a, b, c, xParts, yParts, zParts);
-    vector<double> right_part(matrix.localSize + matrix.globalHaloSize);
-    for (int i = 0; i < matrix.localSize; i++)
-        right_part[i] = sin(matrix.loc2glob[i]);
+    Halo halo(proc_amount, proc_rank, matrix);
+    matrix.UpdateColsNumbers();
+    vector<double> right_part(matrix.getLocalSize() + halo.getGlobalHaloSize());
+    for (int i = 0; i < matrix.getLocalSize(); i++)
+        right_part[i] = sin(matrix.getGlobalFromLocal(i));
     result data(numeric_limits<double>::min(), 1000);
 
-    if (matrix.proc_rank == 0)
+    if (halo.getProcRank() == 0)
     {
         cout << "Start" << endl;
         cout << "Proc amount: " << proc_amount << endl;
@@ -333,11 +355,11 @@ void test(int proc_amount, int proc_rank, int xParts, int yParts, int zParts, in
     }
 
     double start = MPI_Wtime();
-    solver(matrix, right_part, data);
+    solver(matrix, right_part, halo, data);
     MPI_Barrier(MPI_COMM_WORLD);
     double time = MPI_Wtime() - start;
 
-    if (matrix.proc_rank == 0)
+    if (halo.getProcRank() == 0)
     {
         cout << "Time: " << time << endl;
         cout << "Sum time: " << sum_time << endl;
@@ -357,8 +379,8 @@ int main(int argc, char **argv)
     MPI_Comm_size(MPI_COMM_WORLD, &proc_amount);
     MPI_Comm_rank(MPI_COMM_WORLD, &proc_rank);
 
-    int a = atoi(argv[1]), b = atoi(argv[2]), c = atoi(argv[3]);
-    int xParts = atoi(argv[4]), yParts = atoi(argv[5]), zParts = atoi(argv[6]);
+    size_t a = size_t(atoi(argv[1])), b = size_t(atoi(argv[2])), c = size_t(atoi(argv[3]));
+    size_t xParts = size_t(atoi(argv[4])), yParts = size_t(atoi(argv[5])), zParts = size_t(atoi(argv[6]));
     bool openmp = false;
     if (argc == 8 && string(argv[7]) == "openmp")
         openmp = true;
